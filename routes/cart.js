@@ -5,10 +5,6 @@ const Cart = require('../models/cart')
 const User = require('../models/user');
 const router = express.Router();
 
-router.get('/user/:cartId', async (req,res)=>{
-    const foundUser = await User.find(usr => usr.cart._id === req.params.cartId);
-    res.send(foundUser);
-})
 
 router.get('/cart', async (req, res) => {
     const foundCart = await Cart.find({}).populate('storeitems');
@@ -31,42 +27,50 @@ router.get('/cart/:cartId', async (req, res) => {
 
 router.post('/cart/:CartId/cartItem', async function (req, res){
     const foundCart = await Cart.findById(req.params.CartId);
-    const Item = req.body;
-    const foundItem = await StoreItems.find({title : Item.title})
+    const foundItem = await StoreItems.findById( req.body.id);
     if(foundCart.items.length == 0){
         const newCart = {items:[{productId: foundItem._id, qty:1}], totalPrice: foundItem.price};
-        //newCart._id = foundCart._id;
         foundCart.items = newCart.items;
         foundCart.totalPrice = newCart.totalPrice;
-        // foundCart.items.push({productId: foundItem._id, qty: 1});
-        // foundCart.totalPrice = foundItem.price;
+        foundItem.quantity -= 1;
     }
     else{
-        const isExisting = foundCart.items.findIndex(objItems => objItems.productId == foundItem._id);
+        const isExisting = foundCart.items.findIndex(
+            objInItems => new String(objInItems.productId).trim() === new String(foundItem._id).trim());
         if( isExisting == -1){
-             foundCart.items.push({productId: foundItem._id, qty: 1});
+            foundCart.items.push({productId: foundItem._id, qty: 1});
             foundCart.totalPrice += foundItem.price;
-            // foundItem.quantity -=1;
-
+            foundItem.quantity -=1;
         }else{
             const ExistingProdInCart = foundCart.items[isExisting];
             ExistingProdInCart.qty += 1;
             foundCart.totalPrice += foundItem.price;
-
+            foundItem.quantity -=1;
         }
     }
-    // if(!foundCart.totalPrice){
-    //     foundCart.totalPrice = 0;
-    // }
-    // foundCart.totalPrice += foundItem.price;
-    //const update = foundCart.totalPrice;
-    //await Cart.();
+    foundCart.totalPrice = foundCart.totalPrice.toFixed(3)
     foundCart.save();
-
-
+    foundItem.save();
     res.send(foundCart ? foundCart : 404);
 })
 
+router.delete('/cart/:cartId/storeItem', async (req, res)=>{
+    const foundCart = Cart.findById(req.params.cartId);
+    const foundItem = StoreItems.findById(req.body._id);
+    const isExisting = foundCart.items.findIndex(
+        objInItems => new String(objInItems.productId).trim() === new String(foundItem._id).trim());
+    if(isExisting){
+        foundCart.items[isExisting].qty -= 1;
+        foundItem.quantity+= 1;
+        foundCart.save();
+        foundItem.save();
+    }else{
+        res.send(404)
+    }
 
+    res.send(foundCart ? foundCart : 404);
+
+
+})
 
 module.exports = router;

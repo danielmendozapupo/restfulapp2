@@ -22,10 +22,10 @@ app.use(storeItemsRoutes);
 
 const url = 'mongodb+srv://dbUser:dbUserPassword@cluster0.ij9xt.mongodb.net/Project1_SoftDev?retryWrites=true&w=majority';
 
-const User = require("./models/user");
-const StoreItems = require("./models/storeItems");
-const Cart = require("./models/cart");
-const storeData = require('./Data/sampleStore.json');
+// const User = require("./models/user");
+// const StoreItems = require("./models/storeItems");
+// const Cart = require("./models/cart");
+// const storeData = require('./Data/sampleStore.json');
 
 
 const dataStore = [];
@@ -58,16 +58,12 @@ const initDatabase = async ()=>{
     }
 }
 
-//
+
 const initializeCart = async () => {
     const cart = [];
     const users = await User.find({});
 
     for (let i = 0; i < users.length; i++) {
-        // const newCart = {
-        //     items: [],
-        //     totalPrice: Number
-        // }
         const newCart = await Cart.create({items:[],totalPrice: 0});
         users[i].cart = newCart;
         await users[i].save();
