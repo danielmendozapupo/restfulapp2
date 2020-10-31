@@ -8,6 +8,13 @@ const router = express.Router();
 
 router.get('/cart', async (req, res) => {
     const foundCart = await Cart.find({}).populate('storeitems');
+    const foundUser = await User.find({cart : foundCart})
+    if(!req.session.lastCartUserViewed){
+        req.session.lastCartUserViewed = [foundUser];
+    }
+    else{
+        req.session.lastCartUserViewed.push(foundUser);
+    }
     res.send(foundCart ? foundCart : 404)
 })
 
@@ -15,14 +22,6 @@ router.get('/cart/:cartId', async (req, res) => {
     const foundCart = await Cart.findById({_id : req.params.cartId}).populate('storeitems');
     res.send(foundCart ? foundCart : 404)
 })
-
-/*router.get('/cart:CartId/cartItem', async (req,res)=>{
-    const foundCart = await Cart.findById(req.params.CartId);
-    const storeItem = await StoreItems.find(req.params.cartItem);
-
-    await foundCart.add(storeItem, storeItem._id);
-    res.send(foundCart);
-})*/
 
 
 router.post('/cart/:CartId/cartItem', async function (req, res){

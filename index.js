@@ -1,6 +1,8 @@
 const express = require('express');
 const axios = require('axios');
 const mongoose = require('mongoose');
+
+const cookieParser = require('cookie-parser');
 mongoose.set('useFindAndModify', false);
 
 const session = require('express-session');
@@ -14,15 +16,18 @@ const userRoutes = require('./routes/user');
 const cartRoutes = require('./routes/cart');
 const storeItemsRoutes = require('./routes/storeItems');
 
+
 const port = process.env.PORT || 8080;
 
+//const User = require('./models/user');
+//app.use(router);
 app.use(userRoutes);
 app.use(cartRoutes);
 app.use(storeItemsRoutes);
 
 const url = 'mongodb+srv://dbUser:dbUserPassword@cluster0.ij9xt.mongodb.net/Project1_SoftDev?retryWrites=true&w=majority';
 
-// const User = require("./models/user");
+//const User = require("./models/user");
 // const StoreItems = require("./models/storeItems");
 // const Cart = require("./models/cart");
 // const storeData = require('./Data/sampleStore.json');
@@ -46,6 +51,7 @@ const config = {
 const initDatabase = async ()=>{
     database = await mongoose.connect(url, {userNewUrlParser: true, useUnifiedTopology:true});
     if(database){
+        app.use(cookieParser());
         app.use(session({
             secret : 'ItsAsecretWord',
             store: new MongoStore({mongooseConnection:mongoose.connection})
@@ -116,8 +122,14 @@ const initializeAllData = async ()=>{
 
 initializeAllData();
 
+app.get('/', async (req,res) =>{
+    console.log(`req.session: ${JSON.stringify(req.session)} `);
+    req.session.numCalls++;
+    res.send(200);
+})
 
 
+/////////////////////////////////////////////////////////////////////////
 app.use((req, res) => {
     res.status(404).send('Element Not Found');
 });
