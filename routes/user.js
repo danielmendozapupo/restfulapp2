@@ -19,8 +19,15 @@ router.get('/user', async (req, res) => {
         lastName: new RegExp(req.query.lastName),
         email: new RegExp(req.query.email)
     }).populate('carts');
-    console.log(foundUsers);
     console.log(req.session)
+    if(!req.session.lastUserViewed){
+        req.session.lastUserViewed = [foundUsers];
+    }
+    else{
+        req.session.lastUserViewed.push(foundUsers);
+    }
+    console.log(foundUsers);
+
     res.send(foundUsers ? foundUsers : 404);
 })
 

@@ -21,16 +21,10 @@ const port = process.env.PORT || 8080;
 
 //const User = require('./models/user');
 //app.use(router);
-app.use(userRoutes);
-app.use(cartRoutes);
-app.use(storeItemsRoutes);
+
 
 const url = 'mongodb+srv://dbUser:dbUserPassword@cluster0.ij9xt.mongodb.net/Project1_SoftDev?retryWrites=true&w=majority';
 
-//const User = require("./models/user");
-// const StoreItems = require("./models/storeItems");
-// const Cart = require("./models/cart");
-// const storeData = require('./Data/sampleStore.json');
 
 
 const dataStore = [];
@@ -49,13 +43,8 @@ const config = {
 
 
 const initDatabase = async ()=>{
-    database = await mongoose.connect(url, {userNewUrlParser: true, useUnifiedTopology:true});
+    database = await mongoose.connect(url, {useCreateIndex: true, useUnifiedTopology:true, useNewUrlParser: true });
     if(database){
-        app.use(cookieParser());
-        app.use(session({
-            secret : 'ItsAsecretWord',
-            store: new MongoStore({mongooseConnection:mongoose.connection})
-        }));
         app.use(router);
         console.log('Successfully connected to my DB');
     }
@@ -63,6 +52,16 @@ const initDatabase = async ()=>{
         console.log('Error connecting to my DB');
     }
 }
+
+initDatabase();
+app.use(session({
+    secret : 'ItsAsecretWord',
+    store: new MongoStore({mongooseConnection:mongoose.connection}),
+    resave: false,
+    saveUninitialized: false
+
+}));
+
 
 
 const initializeCart = async () => {
@@ -104,8 +103,10 @@ const initializeStoreItems = async() =>{
    await StoreItems.create(storeData);
 }
 
-const initializeAllData = async ()=>{
-    await initDatabase();
+
+
+// const initializeAllData = async ()=>{
+//     await initDatabase();
     //
 
     // await User.deleteMany({}); // clean the database before populate it.
@@ -118,9 +119,14 @@ const initializeAllData = async ()=>{
     // const authors = await Author.find().populate('books');
     // console.log(`Author data initialized: ${authors}`);
 
-};
+// };
 
-initializeAllData();
+// initializeAllData();
+
+app.use(userRoutes);
+app.use(cartRoutes);
+app.use(storeItemsRoutes);
+
 
 app.get('/', async (req,res) =>{
     console.log(`req.session: ${JSON.stringify(req.session)} `);
