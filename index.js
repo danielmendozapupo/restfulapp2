@@ -2,7 +2,6 @@ const express = require('express');
 const axios = require('axios');
 const mongoose = require('mongoose');
 
-const cookieParser = require('cookie-parser');
 mongoose.set('useFindAndModify', false);
 
 const session = require('express-session');
@@ -15,11 +14,14 @@ app.use(express.json());
 const userRoutes = require('./routes/user');
 const cartRoutes = require('./routes/cart');
 const storeItemsRoutes = require('./routes/storeItems');
+const jwt = require("jsonwebtoken");
 
 
 const port = process.env.PORT || 8080;
 
-//const User = require('./models/user');
+const User = require('./models/user');
+const StoreItems = require("./models/storeItems");
+const Cart = require('./models/cart');
 //app.use(router);
 
 
@@ -40,7 +42,6 @@ const config = {
         'X-API-KEY' : 'a721d0c518cc4122995f8fa99ae8c2be'
     }
 }
-
 
 const initDatabase = async ()=>{
     database = await mongoose.connect(url, {useCreateIndex: true, useUnifiedTopology:true, useNewUrlParser: true });
@@ -77,48 +78,52 @@ const initializeCart = async () => {
     //await Cart.create(cart);
 }
 
+//
+// const initializeUsers = async()=>{
+//     const users = [];
+//     const carts = await Cart.find({});
+//
+//     const firstNamePromise = await axios.get('https://randommer.io/api/Name?nameType=firstname&quantity=50',config);
+//     const lastNamePromise = await axios.get('https://randommer.io/api/Name?nameType=surname&quantity=50', config);
+//
+//     const extensions = ['@hotmail.com', '@gmail.com', '@yahoo.com'];
+//
+//     const results = await Promise.all([firstNamePromise, lastNamePromise]);
+//     results[0].data.forEach((name, index) => {
+//         const assignedCart = carts[Math.floor(Math.random()*carts.length)];
+//         const firstName = name;
+//         const lastName = results[1].data[index];
+//         const email = name.toLowerCase() +'.' + results[1].data[index].toLowerCase() +
+//             extensions[Math.floor(Math.random() * extensions.length)];
+//         users.push({firstName, lastName, email, login:`${firstName}.${lastName}`,password: 'password123', cart:assignedCart});
+//     });
+//
+//     await User.create(users);
+//
+// };
 
-const initializeUsers = async()=>{
-    const users = [];
-    const carts = await Cart.find({});
-
-    const firstNamePromise = await axios.get('https://randommer.io/api/Name?nameType=firstname&quantity=50',config);
-    const lastNamePromise = await axios.get('https://randommer.io/api/Name?nameType=surname&quantity=50', config);
-
-    const extensions = ['@hotmail.com', '@gmail.com', '@yahoo.com'];
-
-    const results = await Promise.all([firstNamePromise, lastNamePromise]);
-    results[0].data.forEach((name, index) => {
-        const assignedCart = carts[Math.floor(Math.random()*carts.length)];
-        users.push({firstName: name, lastName: results[1].data[index], email :
-        name.toLowerCase() +'.' + results[1].data[index].toLowerCase() +
-        extensions[Math.floor(Math.random() * extensions.length)], cart:assignedCart});
-    });
-
-    await User.create(users);
-
-};
-
-const initializeStoreItems = async() =>{
-   await StoreItems.create(storeData);
-}
+// const storeData = require('./Data/sampleStore.json');
+//
+// const initializeStoreItems = async() =>{
+//    await StoreItems.create(storeData);
+// }
 
 
 
 // const initializeAllData = async ()=>{
 //     await initDatabase();
-    //
-
-    // await User.deleteMany({}); // clean the database before populate it.
-    // await StoreItems.deleteMany({});
-    // await Cart.deleteMany({});
-    //
-    // await initializeUsers();
-    // await initializeStoreItems();
-    // await initializeCart();
-    // const authors = await Author.find().populate('books');
-    // console.log(`Author data initialized: ${authors}`);
-
+//
+//
+//     await User.deleteMany({}); // clean the database before populate it.
+//     await StoreItems.deleteMany({});
+//     await Cart.deleteMany({});
+//
+//     await initializeUsers();
+//     await initializeStoreItems();
+//     await initializeCart();
+//     // const authors = await Author.find().populate('books');
+//     // console.log(`Author data initialized: ${authors}`);
+//
 // };
 
 // initializeAllData();
@@ -135,10 +140,33 @@ app.get('/', async (req,res) =>{
 })
 
 
+
 /////////////////////////////////////////////////////////////////////////
 app.use((req, res) => {
     res.status(404).send('Element Not Found');
 });
+
+const accessTokenSecret = "someSecretIJustInvented!";
+//Create a middleware to authenticate the app
+app.use(async (req, res, next)=>{
+    try {
+        const authHeader = req.headers.authorization;
+        if (authHeader) {
+            //Bearer,eyeklsd...
+            const jwtToken = authHeader.split(' ')[1];
+            const user = jwt.verify(jwtToken, accessTokenSecret);
+            req.user = user;
+        }
+        // }else{
+        //     //Really we should redirect
+        //     return res.send(401);
+        // }
+    }
+    catch (err){
+        res.send(403);
+    }
+    next();
+})
 
 app.listen(port, ()=>{
     console.log(`Ecommerce app listening at http://localhost:${port}`);

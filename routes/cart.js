@@ -4,9 +4,34 @@ const StoreItems = require('../models/storeItems');
 const Cart = require('../models/cart')
 const User = require('../models/user');
 const router = express.Router();
+const jwt = require('jsonwebtoken');
 
 
-router.get('/cart', async (req, res) => {
+const accessTokenSecret = "someSecretIJustInvented!";
+//  Create the Express middleware that handles the authentication process:
+const authenticateJWT = (req, res, next) => {
+    const authHeader = req.headers.authorization;
+
+    if (authHeader) {
+        const token = authHeader.split(' ')[1];
+
+        jwt.verify(token, accessTokenSecret, (err, user) => {
+            if (err) {
+                return res.sendStatus(403);
+            }
+
+            req.user = user;
+            next();
+        });
+    } else {
+        res.sendStatus(401);
+    }
+};
+
+
+
+router.get('/cart', authenticateJWT, async (req, res) => {
+    await req.user;
     const foundCart = await Cart.find({}).populate('storeitems');
     const foundUser = await User.find({cart : foundCart})
     if(!req.session.lastCartUserViewed){
@@ -18,13 +43,15 @@ router.get('/cart', async (req, res) => {
     res.send(foundCart ? foundCart : 404)
 })
 
-router.get('/cart/:cartId', async (req, res) => {
+router.get('/cart/:cartId', authenticateJWT, async (req, res) => {
+    await req.user;
     const foundCart = await Cart.findById({_id : req.params.cartId}).populate('storeitems');
     res.send(foundCart ? foundCart : 404)
 })
 
 
-router.post('/cart/:CartId/cartItem', async function (req, res){
+router.post('/cart/:CartId/cartItem', authenticateJWT, async function (req, res){
+    await req.user;
     const foundCart = await Cart.findById(req.params.CartId);
     const foundItem = await StoreItems.findById( req.body.id);
     if(foundCart.items.length == 0){
@@ -35,7 +62,7 @@ router.post('/cart/:CartId/cartItem', async function (req, res){
     }
     else{
         const isExisting = foundCart.items.findIndex(
-            objInItems => new String(objInItems.productId).trim() === new String(foundItem._id).trim());
+            objInItems => String(objInItems.productId).trim() === String(foundItem._id).trim());
         if( isExisting == -1){
             foundCart.items.push({productId: foundItem._id, qty: 1});
             foundCart.totalPrice += foundItem.price;
@@ -53,11 +80,12 @@ router.post('/cart/:CartId/cartItem', async function (req, res){
     res.send(foundCart ? foundCart : 404);
 })
 
-router.delete('/cart/:cartId/storeItem', async (req, res)=>{
+router.delete('/cart/:cartId/storeItem', authenticateJWT,async (req, res)=>{
+    await req.user;
     const foundCart = Cart.findById(req.params.cartId);
     const foundItem = StoreItems.findById(req.body._id);
     const isExisting = foundCart.items.findIndex(
-        objInItems => new String(objInItems.productId).trim() === new String(foundItem._id).trim());
+        objInItems => String(objInItems.productId).trim() === String(foundItem._id).trim());
     if(isExisting){
         foundCart.items[isExisting].qty -= 1;
         foundItem.quantity+= 1;

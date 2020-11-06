@@ -1,6 +1,7 @@
 const express = require('express');
 const User = require('../models/user')
 const Cart = require("../models/cart");
+const jwt = require("jsonwebtoken");
 
 
 const router = express.Router();
@@ -40,6 +41,63 @@ router.post('/user', async (req, res) => {
     await newUser.save();
     res.send(newUser ? newUser : 500);
 });
+
+///Create a login
+const accessTokenSecret = "someSecretIJustInvented!";
+
+router.post('/user/login', async (req,res)=>{
+    // const login = req.body.login;
+    // const password = req.body.password;
+    const {login, password}= req.body;
+    const foundUser = await User.findOne({login, password});
+
+    if(foundUser){
+        //User was found create a token
+        const accessToken = jwt.sign({user:foundUser}, accessTokenSecret);
+        res.send(accessToken);
+    }
+    else{
+        res.send(404);
+    }
+})
+const refreshTokenSecret = 'yourrefreshtokensecrethere';
+let refreshTokens = [];
+
+//Token handler
+//
+// router.post('/token', (req, res) => {
+//     const { token } = req.body;
+//
+//     if (!token) {
+//         return res.sendStatus(401);
+//     }
+//
+//     if (!refreshTokens.includes(token)) {
+//         return res.sendStatus(403);
+//     }
+//
+//     jwt.verify(token, refreshTokenSecret, (err, user) => {
+//         if (err) {
+//             return res.sendStatus(403);
+//         }
+//
+//         const accessToken = jwt.sign({ login: user.username/*, role: user.role*/ }, accessTokenSecret, { expiresIn: '20m' });
+//
+//         res.json({
+//             accessToken
+//         });
+//     });
+// });
+//
+// router.post('/logout', (req, res) => {
+//     const { token } = req.body;
+//     refreshTokens = refreshTokens.filter(token => t !== token);
+//
+//     res.send("Logout successful");
+// });
+//
+
+
 
 router.put('/user/:id', async (req,res)=>{
     if(!req.body.firstName || !req.body.lastName){
