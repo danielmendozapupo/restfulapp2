@@ -30,7 +30,7 @@ const authenticateJWT = (req, res, next) => {
 
 
 
-router.get('/cart', authenticateJWT, async (req, res) => {
+router.get('/cart',  async (req, res) => {
     await req.user;
     const foundCart = await Cart.find({}).populate('storeitems');
     const foundUser = await User.find({cart : foundCart})

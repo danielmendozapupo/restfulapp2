@@ -1,36 +1,41 @@
 const express = require('express');
-const axios = require('axios');
-const mongoose = require('mongoose');
-
-mongoose.set('useFindAndModify', false);
-
 const session = require('express-session');
 const MongoStore = require('connect-mongo')(session);
-const router = express.Router();
-
-const app = express();
-app.use(express.json());
-
-const userRoutes = require('./routes/user');
-const cartRoutes = require('./routes/cart');
-const storeItemsRoutes = require('./routes/storeItems');
-const jwt = require("jsonwebtoken");
+let cors = require('cors');
+// const jwt = require("jsonwebtoken");
+const accessTokenSecret = "someSecretIJustInvented!";
+const axios = require('axios');
+axios.default.withCredentials = true;
+const mongoose = require('mongoose');
+const auth = require('./middleware/auth');
 
 
-const port = process.env.PORT || 8080;
+// mongoose.set('useFindAndModify', false);
 
 const User = require('./models/user');
 const StoreItems = require("./models/storeItems");
 const Cart = require('./models/cart');
-//app.use(router);
 
+const router = express.Router();
 
+const app = express();
+app.use(express.json());
+// app.use(cors());
+
+const corsConfig={
+    origin:true,
+    credentials:true,
+}
+app.use('*',cors(corsConfig));
+
+const userRoutes = require('./routes/user');
+const cartRoutes = require('./routes/cart');
+const storeItemsRoutes = require('./routes/storeItems');
+
+const port = process.env.PORT || 8080;
 const url = 'mongodb+srv://dbUser:dbUserPassword@cluster0.ij9xt.mongodb.net/Project1_SoftDev?retryWrites=true&w=majority';
 
-
-
-const dataStore = [];
-
+// const dataStore = [];
 //Database Name
 const dbName = 'Project1_SoftDev';
 
@@ -47,36 +52,43 @@ const initDatabase = async ()=>{
     database = await mongoose.connect(url, {useCreateIndex: true, useUnifiedTopology:true, useNewUrlParser: true });
     if(database){
         app.use(router);
+        // const connection = mongoose.createConnection(url);
+        // app.use(session({
+        //     secret: 'ItsASecretToEveryone',
+        //     resave: false,
+        //     store: new MongoStore({mongooseConnection: connection}),
+        //     saveUninitialized: false
+        // }));
         console.log('Successfully connected to my DB');
-    }
-    else{
+    }else{
         console.log('Error connecting to my DB');
     }
 }
 
 initDatabase();
+
 app.use(session({
     secret : 'ItsAsecretWord',
     store: new MongoStore({mongooseConnection:mongoose.connection}),
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
     resave: false,
     saveUninitialized: false
 
 }));
 
-
-
-const initializeCart = async () => {
-    const cart = [];
-    const users = await User.find({});
-
-    for (let i = 0; i < users.length; i++) {
-        const newCart = await Cart.create({items:[],totalPrice: 0});
-        users[i].cart = newCart;
-        await users[i].save();
-        //cart.push(newCart);
-    }
-    //await Cart.create(cart);
-}
+//
+// const initializeCart = async () => {
+//     const cart = [];
+//     const users = await User.find({});
+//
+//     for (let i = 0; i < users.length; i++) {
+//         const newCart = await Cart.create({items:[],totalPrice: 0});
+//         users[i].cart = newCart;
+//         await users[i].save();
+//         cart.push(newCart);
+//     }
+//     await Cart.create(cart);
+// }
 
 //
 // const initializeUsers = async()=>{
@@ -107,66 +119,47 @@ const initializeCart = async () => {
 // const initializeStoreItems = async() =>{
 //    await StoreItems.create(storeData);
 // }
-
-
-
+//
 // const initializeAllData = async ()=>{
 //     await initDatabase();
 //
 //
-//     await User.deleteMany({}); // clean the database before populate it.
-//     await StoreItems.deleteMany({});
-//     await Cart.deleteMany({});
+//     // await User.deleteMany({}); // clean the database before populate it.
+//     // await StoreItems.deleteMany({});
+//     // await Cart.deleteMany({});
 //
 //     await initializeUsers();
 //     await initializeStoreItems();
 //     await initializeCart();
-//     // const authors = await Author.find().populate('books');
-//     // console.log(`Author data initialized: ${authors}`);
-//
+    // const authors = await Author.find().populate('books');
+    // console.log(`Author data initialized: ${authors}`);
+
 // };
 
 // initializeAllData();
 
-app.use(userRoutes);
-app.use(cartRoutes);
-app.use(storeItemsRoutes);
+/////////////////////////////////////////////////////////////////////////
+/*
+app.use((req, res) => {
+    res.status(404).send('Element Not Found');
+});
+*/
 
 
-app.get('/', async (req,res) =>{
+
+
+// const accessTokenSecret = "someSecretIJustInvented!";
+
+app.get('/',auth, async (req,res) =>{
     console.log(`req.session: ${JSON.stringify(req.session)} `);
     req.session.numCalls++;
     res.send(200);
 })
 
 
-
-/////////////////////////////////////////////////////////////////////////
-app.use((req, res) => {
-    res.status(404).send('Element Not Found');
-});
-
-const accessTokenSecret = "someSecretIJustInvented!";
-//Create a middleware to authenticate the app
-app.use(async (req, res, next)=>{
-    try {
-        const authHeader = req.headers.authorization;
-        if (authHeader) {
-            //Bearer,eyeklsd...
-            const jwtToken = authHeader.split(' ')[1];
-            const user = jwt.verify(jwtToken, accessTokenSecret);
-            req.user = user;
-        }
-        // }else{
-        //     //Really we should redirect
-        //     return res.send(401);
-        // }
-    }
-    catch (err){
-        res.send(403);
-    }
-    next();
-})
+app.use(userRoutes);
+app.use(cartRoutes);
+app.use(storeItemsRoutes);
 
 app.listen(port, ()=>{
     console.log(`Ecommerce app listening at http://localhost:${port}`);

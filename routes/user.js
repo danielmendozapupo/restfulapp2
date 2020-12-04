@@ -1,35 +1,73 @@
 const express = require('express');
 const User = require('../models/user')
 const Cart = require("../models/cart");
+const accessTokenSecret = "someSecretIJustInvented!";
 const jwt = require("jsonwebtoken");
 
 
 const router = express.Router();
 
-//Gets the user info given the id
-router.get('/user/:UserId', async (req, res) => {
-    const userFound = await User.findById({_id : req.params.UserId}).populate('cart');
-    res.send(userFound || 404);
 
-})
+
 
 //Get all users that satisfy the regular expression query
 router.get('/user', async (req, res) => {
-    const foundUsers = await User.find({
-        firstName: new RegExp(req.query.firstName),
-        lastName: new RegExp(req.query.lastName),
-        email: new RegExp(req.query.email)
-    }).populate('carts');
-    console.log(req.session)
-    if(!req.session.lastUserViewed){
-        req.session.lastUserViewed = [foundUsers];
+    try{
+        const foundUsers = await User.find({
+            firstName: new RegExp(req.query.firstName),
+            lastName: new RegExp(req.query.lastName),
+            email: new RegExp(req.query.email)
+        }).populate('carts');
+        // console.log(req.session)
+         if(!req.session.lastUserViewed){
+             req.session.lastUserViewed = [foundUsers];
+         }
+        res.send(foundUsers || 404);
+    }catch (e){
+        res.sendStatus(400);
     }
-    else{
-        req.session.lastUserViewed.push(foundUsers);
-    }
-    console.log(foundUsers);
 
-    res.send(foundUsers ? foundUsers : 404);
+
+})
+
+//Create a login
+
+
+router.post('/user/login',async (req,res)=>{
+    // const login = req.body.login;
+    // const password = req.body.password;
+    try{
+        const {login, password}= req.body;
+        const foundUser = await User.findOne({login, password});
+
+        if(foundUser){
+            //User was found create a token
+            const accessToken = jwt.sign({foundUser}, accessTokenSecret);
+            res.send({accessToken, foundUser});
+        }
+        else{
+            res.send(404);
+        }
+    }catch (e){
+        return res.sendStatus(400).send(e)
+    }
+
+})
+
+
+
+//Gets the user info given the id
+router.get('/user/:UserId', async (req, res) => {
+    try{
+        const userFound = await User.findById({_id : req.params.UserId}).populate('cart');
+        if(req.userJwt._id!==userFound.id){
+            return res.send(403);
+        }
+        res.send(userFound||404);
+    }catch (e) {
+        res.sendStatus(400);
+    }
+
 })
 
 
@@ -42,24 +80,8 @@ router.post('/user', async (req, res) => {
     res.send(newUser ? newUser : 500);
 });
 
-///Create a login
-const accessTokenSecret = "someSecretIJustInvented!";
 
-router.post('/user/login', async (req,res)=>{
-    // const login = req.body.login;
-    // const password = req.body.password;
-    const {login, password}= req.body;
-    const foundUser = await User.findOne({login, password});
 
-    if(foundUser){
-        //User was found create a token
-        const accessToken = jwt.sign({user:foundUser}, accessTokenSecret);
-        res.send(accessToken);
-    }
-    else{
-        res.send(404);
-    }
-})
 const refreshTokenSecret = 'yourrefreshtokensecrethere';
 let refreshTokens = [];
 
@@ -89,14 +111,12 @@ let refreshTokens = [];
 //     });
 // });
 //
-// router.post('/logout', (req, res) => {
-//     const { token } = req.body;
-//     refreshTokens = refreshTokens.filter(token => t !== token);
-//
-//     res.send("Logout successful");
-// });
-//
+router.post('/user/logout', (req, res) => {
+    const { token } = req.body;
+    refreshTokens = refreshTokens.filter(t => t !== token);
 
+    res.send("Logout successful");
+});
 
 
 router.put('/user/:id', async (req,res)=>{
@@ -117,16 +137,16 @@ router.delete('/user/:UserId', async(req,res)=>{
 })
 
 
-router.delete('/user/:UserId/cart',async (req, res) => {
+router.delete('/user/:UserId/cart', async (req, res) => {
     const user = await User.findById(req.params.UserId);
     if(!user) return ('The user with the given ID was not found.',404);
     user.cart = [];
-    user.save();
+    user.cart.save();
     res.send(user.cart);
 })
 
 
-router.get('/user/:UserId/cart', async (req, res) => {
+router.get('/user/:UserId/cart',  async (req, res) => {
     const user = await User.findById(req.params.UserId);
     if(!user) return ('The user with the given ID was not found.',404);
     res.send(user.cart);

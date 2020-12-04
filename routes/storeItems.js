@@ -1,6 +1,7 @@
 const express = require('express');
 const StoreItems = require('../models/storeItems')
 const session = require('express-session');
+const jwt = require("jsonwebtoken");
 const MongoStore = require('connect-mongo')(session);
 const router = express.Router();
 
@@ -25,21 +26,18 @@ const authenticateJWT = (req, res, next) => {
     }
 };
 
-
-
-
-router.get('/StoreItem', authenticateJWT, async (req,res)=>{
+router.get('/StoreItem', /*authenticateJWT,*/ async (req,res)=>{
     await req.user;
     const foundProducts = await StoreItems.find({});
     res.send(foundProducts ? foundProducts : 404);
 })
 
-router.get('/StoreItem/:StoreItemID', authenticateJWT,async (req,res)=>{
+router.get('/StoreItem/:StoreItemID', /*authenticateJWT,*/async (req,res)=>{
     const foundStoreItem = await StoreItems.findById(req.params.StoreItemID);
     res.send(foundStoreItem ? foundStoreItem : 404)
 })
 
-router.get('/StoreItem/Recent', authenticateJWT, async (req,res)=>{
+router.get('/StoreItem/Recent', /*authenticateJWT,*/ async (req,res)=>{
     const StoreItemsVisited = StoreItems.find({}).session.lastStoreItemViewed.limit(req.query.num);
 
     res.send(StoreItemsVisited ? StoreItemsVisited : 404)
@@ -48,14 +46,13 @@ router.get('/StoreItem/Recent', authenticateJWT, async (req,res)=>{
 })
 
 
-
-router.post('/StoreItem', authenticateJWT, async (req, res)=>{
+router.post('/StoreItem', /*authenticateJWT, */async (req, res)=>{
     await req.user;
     const newProd = await StoreItems.create(req.body);
     res.send(newProd ? newProd : 500);
 });
 
-router.put('/StoreItem/:StoreItemID', authenticateJWT, async (req, res)=>{
+router.put('/StoreItem/:StoreItemID', /*authenticateJWT,*/ async (req, res)=>{
     if(!req.body.title || !req.body.type){
         res.send(422);
     }
@@ -63,7 +60,7 @@ router.put('/StoreItem/:StoreItemID', authenticateJWT, async (req, res)=>{
     res.send(updatedProd ? updatedProd : 404);
 })
 
-router.delete('/StoreItem/:StoreItemID', authenticateJWT, async (req, res)=>{
+router.delete('/StoreItem/:StoreItemID'/*, authenticateJWT*/, async (req, res)=>{
     const deleteProduct = await StoreItems.findByIdAndDelete(req.params.StoreItemID);
     res.send(deleteProduct ? deleteProduct : 404);
 })
