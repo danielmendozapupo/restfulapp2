@@ -19,9 +19,7 @@ router.get('/user', async (req, res) => {
             email: new RegExp(req.query.email)
         }).populate('carts');
         // console.log(req.session)
-         if(!req.session.lastUserViewed){
-             req.session.lastUserViewed = [foundUsers];
-         }
+
         res.send(foundUsers || 404);
     }catch (e){
         res.sendStatus(400);
@@ -36,13 +34,27 @@ router.get('/user', async (req, res) => {
 router.post('/user/login',async (req,res)=>{
     // const login = req.body.login;
     // const password = req.body.password;
+    /*const cookies =0;*/
     try{
         const {login, password}= req.body;
         const foundUser = await User.findOne({login, password});
-
         if(foundUser){
             //User was found create a token
+
             const accessToken = jwt.sign({foundUser}, accessTokenSecret);
+
+            req.session.LastUserViewed ={
+                id: foundUser['_id'],
+                username: foundUser['login'],
+                cart: foundUser['cart'],
+                firstName: foundUser['firstName'],
+                lastName: foundUser['lastName'],
+                email: foundUser['email']}
+         /*   if(!req.session.User){
+           req.session.User = {foundUser};
+       }*/
+            /*console.log(`req.user.session: ${JSON.stringify(req.session.foundUser)}`)
+            console.log(`user token: ${JSON.stringify(req.session.accessToken)}`)*/
             res.send({accessToken, foundUser});
         }
         else{
@@ -55,7 +67,21 @@ router.post('/user/login',async (req,res)=>{
 })
 
 
+/*
+router.use(function (req, res, next){
+    console.log(req.session);
+    console.log("============================");
+    console.log(req.login);
+    next();
+})
+*/
 
+router.get('/logged', async (req, res) => {
+    let sess = req.session.LastUserViewed['username'];
+    console.log(jwt);
+    res.send(sess)
+
+})
 //Gets the user info given the id
 router.get('/user/:UserId', async (req, res) => {
     try{
@@ -111,11 +137,22 @@ let refreshTokens = [];
 //     });
 // });
 //
-router.post('/user/logout', (req, res) => {
-    const { token } = req.body;
+router.post('/user/logout',  (req, res,next) => {
+   /* const { token } = req.body;
     refreshTokens = refreshTokens.filter(t => t !== token);
 
-    res.send("Logout successful");
+    res.send("Logout successful");*/
+    if(req.session){
+        req.session.destroy(function (err){
+            if(err){
+                return next(err)
+            }else{
+                return res.send("Logout successful");
+            }
+        })
+
+    }
+
 });
 
 

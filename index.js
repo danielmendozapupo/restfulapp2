@@ -1,14 +1,17 @@
 const express = require('express');
 const session = require('express-session');
 const MongoStore = require('connect-mongo')(session);
-let cors = require('cors');
+const cors = require('cors');
+const stripe = require('stripe')('sk_test_51I7OJQCESVgeCc3GNdQ5PWAAwMZBdVl7RA5WzcWLyYrspaZTQw9ahQbRGy8QV0NDsNTXgUZm2ndf0hWU2eVHc9Zc004wDSxjNJ')
+
 // const jwt = require("jsonwebtoken");
 const accessTokenSecret = "someSecretIJustInvented!";
 const axios = require('axios');
 axios.default.withCredentials = true;
+
 const mongoose = require('mongoose');
 const auth = require('./middleware/auth');
-
+const cookieParser = require('cookie-parser')
 
 // mongoose.set('useFindAndModify', false);
 
@@ -20,7 +23,7 @@ const router = express.Router();
 
 const app = express();
 app.use(express.json());
-// app.use(cors());
+app.use(cookieParser());
 
 const corsConfig={
     origin:true,
@@ -31,6 +34,7 @@ app.use('*',cors(corsConfig));
 const userRoutes = require('./routes/user');
 const cartRoutes = require('./routes/cart');
 const storeItemsRoutes = require('./routes/storeItems');
+const jsonwebtoken = require("jsonwebtoken");
 
 const port = process.env.PORT || 8080;
 const url = 'mongodb+srv://dbUser:dbUserPassword@cluster0.ij9xt.mongodb.net/Project1_SoftDev?retryWrites=true&w=majority';
@@ -69,12 +73,12 @@ initDatabase();
 
 app.use(session({
     secret : 'ItsAsecretWord',
-    store: new MongoStore({mongooseConnection:mongoose.connection}),
-    maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    resave: false,
-    saveUninitialized: false
-
+    saveUninitialized: true,
+    resave: true,
+    store: new MongoStore({mongooseConnection:mongoose.connection,
+        ttl: 24 * 3600 })// 24 hours
 }));
+
 
 //
 // const initializeCart = async () => {
@@ -145,21 +149,42 @@ app.use((req, res) => {
 });
 */
 
-
-
-
 // const accessTokenSecret = "someSecretIJustInvented!";
-
 app.get('/',auth, async (req,res) =>{
     console.log(`req.session: ${JSON.stringify(req.session)} `);
     req.session.numCalls++;
     res.send(200);
+})
+/*
+app.get('/jwt', (req,res) => {
+    const token = jsonwebtoken.sign({user: User.firstName},accessTokenSecret);
+    res.cookie('token', token, {
+        secure: false,
+        httpOnly:false});
+
+    res.json({token});
+});*/
+
+app.post('/payments/create', async (req, res)=>{
+    const total = req.query.total;
+    console.log('Payment Request Received for this amount-> ', total);
+    const paymentIntent = await stripe.paymentIntents.create({
+        amount:total, //subunit of the currency
+        currency: 'usd',
+    });
+    //Ok- Created
+    res.status(201).send({
+        clientSecret: paymentIntent.client_secret,
+
+    })
 })
 
 
 app.use(userRoutes);
 app.use(cartRoutes);
 app.use(storeItemsRoutes);
+
+
 
 app.listen(port, ()=>{
     console.log(`Ecommerce app listening at http://localhost:${port}`);
